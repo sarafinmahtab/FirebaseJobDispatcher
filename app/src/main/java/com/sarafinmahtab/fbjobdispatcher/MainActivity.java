@@ -38,7 +38,7 @@ public class MainActivity extends AppCompatActivity {
 
                 //scheduling new job
                 //creating new firebase job dispatcher
-                FirebaseJobDispatcher dispatcher = new FirebaseJobDispatcher(new GooglePlayDriver(MainActivity.this));
+                FirebaseJobDispatcher dispatcher = new FirebaseJobDispatcher(new GooglePlayDriver(getApplicationContext()));
                 //creating new job and adding it with dispatcher
                 Job job = createJob(dispatcher, jobTag);
                 dispatcher.mustSchedule(job);
@@ -51,7 +51,7 @@ public class MainActivity extends AppCompatActivity {
 
                 textView.setText("Job Cancelled");
 
-                cancelJob(MainActivity.this, jobTag);
+                cancelJob(getApplicationContext(), jobTag);
             }
         });
     }
