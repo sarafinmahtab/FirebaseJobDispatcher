@@ -4,6 +4,7 @@ import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.util.Log;
 
 import com.firebase.jobdispatcher.JobParameters;
@@ -19,12 +20,17 @@ public class ScheduledJobService extends JobService {
 
     private static final String TAG = ScheduledJobService.class.getSimpleName();
 
+    private static final String sharedPreferenceName = "demoSharedPref";
+    private SharedPreferences sharedPreferences;
+
+    private int hour, min;
+
     @Override
     public boolean onStartJob(final JobParameters params) {
         //Offloading work to a new thread.
         Log.d(TAG, "completeJob: " + "jobStarted");
 
-        new Thread(new MyThread(params)).start();
+        setAlarm(params);
 
         return true;
     }
@@ -34,81 +40,49 @@ public class ScheduledJobService extends JobService {
         // If the job is failed it calls this method
         Log.d(TAG, "completeJob: " + "jobStartedFromStopJob");
 
-        new Thread(new MyThread(params)).start();
+        setAlarm(params);
 
         return true; // returns true to re-schedule the job again
     }
 
-    public class MyThread implements Runnable {
+    private void setAlarm(JobParameters params) {
 
-        JobParameters params;
+        sharedPreferences = getSharedPreferences(sharedPreferenceName, MODE_PRIVATE);
 
-        MyThread(JobParameters params) {
-            this.params = params;
-        }
+        hour = sharedPreferences.getInt("hour", 0);
+        min = sharedPreferences.getInt("min", 0);
 
-        @Override
-        public void run() {
+        String value = String.valueOf(hour) + ":" + String.valueOf(min);
+        Log.d("hour_min", value);
 
-            Calendar calendar1 = Calendar.getInstance();
-            calendar1.setTimeInMillis(System.currentTimeMillis());
-            calendar1.set(Calendar.HOUR_OF_DAY, 21);
-            calendar1.set(Calendar.MINUTE, 0);
-            calendar1.set(Calendar.SECOND, 0);
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTimeInMillis(System.currentTimeMillis());
+        calendar.set(Calendar.MINUTE, hour);
+        calendar.set(Calendar.MINUTE, min);
 
-            codeNeedToRun(1, calendar1);
+        Intent intent = new Intent(getBaseContext(), AlarmNotificationReceiver.class);
+        AlarmManager manager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
 
-            Calendar calendar2 = Calendar.getInstance();
-            calendar2.setTimeInMillis(System.currentTimeMillis());
-            calendar2.set(Calendar.HOUR_OF_DAY, 21);
-            calendar2.set(Calendar.MINUTE, 2);
-            calendar2.set(Calendar.SECOND, 0);
+        boolean alarmRunning = (PendingIntent.getBroadcast(getBaseContext(), 1, intent, PendingIntent.FLAG_NO_CREATE) != null);
+        Log.d("AlarmRunning " + String.valueOf(1), String.valueOf(alarmRunning));
 
-            codeNeedToRun(2, calendar2);
+        System.out.println("Next Prayer Time in seconds: " + calendar.getTimeInMillis()/1000);
 
-            Calendar calendar3 = Calendar.getInstance();
-            calendar3.setTimeInMillis(System.currentTimeMillis());
-            calendar3.set(Calendar.HOUR_OF_DAY, 21);
-            calendar3.set(Calendar.MINUTE, 4);
-            calendar3.set(Calendar.SECOND, 0);
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(getApplicationContext(), 1, intent,PendingIntent.FLAG_UPDATE_CURRENT);
 
-            codeNeedToRun(3, calendar3);
-
-            Calendar calendar4 = Calendar.getInstance();
-            calendar4.setTimeInMillis(System.currentTimeMillis());
-            calendar4.set(Calendar.HOUR_OF_DAY, 21);
-            calendar4.set(Calendar.MINUTE, 6);
-            calendar4.set(Calendar.SECOND, 0);
-
-            codeNeedToRun(4, calendar4);
-
-            Calendar calendar5 = Calendar.getInstance();
-            calendar5.setTimeInMillis(System.currentTimeMillis());
-            calendar5.set(Calendar.HOUR_OF_DAY, 21);
-            calendar5.set(Calendar.MINUTE, 9);
-            calendar5.set(Calendar.SECOND, 0);
-
-            codeNeedToRun(5, calendar5);
-
-            jobFinished(params, false); // finishes the job
-            Log.d(TAG, "completeJob: " + "jobFinished");
-        }
-    }
-
-    private void codeNeedToRun(int requestCode, Calendar calendar) {
-        Intent intent = new Intent(getApplicationContext(), AlarmNotificationReceiver.class);
-        AlarmManager manager = (AlarmManager) getApplicationContext().getSystemService(Context.ALARM_SERVICE);
-
-        boolean alarmRunning = (PendingIntent.getBroadcast(getApplicationContext(), requestCode, intent, PendingIntent.FLAG_NO_CREATE) != null);
-        Log.d("AlarmRunning " + String.valueOf(requestCode), String.valueOf(alarmRunning));
-
-        if(!alarmRunning) {
+        if(alarmRunning) {
             Log.d("Alarming", "Alarm On");
-            PendingIntent pendingIntent = PendingIntent.getBroadcast(getApplicationContext(),requestCode, intent,PendingIntent.FLAG_UPDATE_CURRENT);
 
             if(manager != null) {
-                manager.set(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingIntent);
+                manager.cancel(pendingIntent);
             }
         }
+
+        if(manager != null) {
+            manager.setExact(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingIntent);
+        }
+
+        jobFinished(params, false); // finishes the job
+        Log.d(TAG, "completeJob: " + "jobFinished");
     }
 }

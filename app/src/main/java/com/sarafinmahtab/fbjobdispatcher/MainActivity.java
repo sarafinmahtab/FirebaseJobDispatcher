@@ -1,12 +1,17 @@
 package com.sarafinmahtab.fbjobdispatcher;
 
+import android.app.TimePickerDialog;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.TimePicker;
 
 import com.firebase.jobdispatcher.Constraint;
 import com.firebase.jobdispatcher.FirebaseJobDispatcher;
@@ -16,26 +21,32 @@ import com.firebase.jobdispatcher.Lifetime;
 import com.firebase.jobdispatcher.RetryStrategy;
 import com.firebase.jobdispatcher.Trigger;
 
+import java.util.Calendar;
+
 public class MainActivity extends AppCompatActivity {
 
     private String jobTag = "myScheduledJobId";
+
+    private static final String sharedPreferenceName = "demoSharedPref";
+    private SharedPreferences sharedPreferences;
+    SharedPreferences.Editor editor;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        textView = findViewById(R.id.textView);
+        editText = findViewById(R.id.editText);
 
         startBtn = findViewById(R.id.start_job);
         stopBtn = findViewById(R.id.stop_job);
+        set = findViewById(R.id.set);
+
+        sharedPreferences = getSharedPreferences(sharedPreferenceName, MODE_PRIVATE);
 
         startBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-
-                textView.setText("Job Scheduled");
-
                 //scheduling new job
                 //creating new firebase job dispatcher
                 FirebaseJobDispatcher dispatcher = new FirebaseJobDispatcher(new GooglePlayDriver(getApplicationContext()));
@@ -48,16 +59,38 @@ public class MainActivity extends AppCompatActivity {
         stopBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-
-                textView.setText("Job Cancelled");
-
                 cancelJob(getApplicationContext(), jobTag);
+            }
+        });
+
+        set.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Calendar mcurrentTime = Calendar.getInstance();
+                int hour = mcurrentTime.get(Calendar.HOUR_OF_DAY);
+                int minute = mcurrentTime.get(Calendar.MINUTE);
+                TimePickerDialog mTimePicker;
+                mTimePicker = new TimePickerDialog(MainActivity.this, new TimePickerDialog.OnTimeSetListener() {
+                    @Override
+                    public void onTimeSet(TimePicker timePicker, int selectedHour, int selectedMinute) {
+
+                        editor = sharedPreferences.edit();
+                        editor.putInt("hour", selectedHour);
+                        editor.putInt("min", selectedMinute);
+                        editor.apply();
+
+                    }
+                }, hour, minute, true);//Yes 24 hour time
+                mTimePicker.setTitle("Select Time");
+                mTimePicker.show();
             }
         });
     }
 
     @NonNull
     public static Job createJob(FirebaseJobDispatcher dispatcher, String jobTag){
+
+        Log.d("JobCreate", "Job Created!!");
 
         return dispatcher.newJobBuilder()
                 //persist the task across boots
@@ -78,6 +111,7 @@ public class MainActivity extends AppCompatActivity {
                 .setRetryStrategy(RetryStrategy.DEFAULT_EXPONENTIAL)
                 //Run this job only when the network is available.
                 //.setConstraints(Constraint.ON_ANY_NETWORK)
+                //.setExtras(bundle)
                 .build();
     }
 
@@ -103,8 +137,9 @@ public class MainActivity extends AppCompatActivity {
         dispatcher.cancel(jobTag);
     }
 
-    private TextView textView;
+    private EditText editText;
 
     private Button startBtn;
     private Button stopBtn;
+    private Button set;
 }
